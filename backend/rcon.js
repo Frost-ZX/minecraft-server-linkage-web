@@ -17,6 +17,55 @@ export function rconSendData(data = '') {
   }
 }
 
+/**
+ * @description 发送数据，等待回复
+ * @returns {Promise<string | null>}
+ */
+export function rconSendDataWait(sendData = '') {
+  return new Promise((resolve) => {
+
+    if (!connection) {
+      console.error(PREFIX, '发送失败：未连接');
+      return resolve(null);
+    }
+
+    // 处理响应
+    let fn = function (resData) {
+
+      // 停止处理超时
+      clearTimeout(timer);
+
+      // 停止监听数据
+      connection.off('response', fn);
+
+      // 返回数据
+      resolve(resData);
+
+    };
+
+    // 处理超时
+    let timer = setTimeout(() => {
+
+      console.error(PREFIX, '发送失败：响应超时');
+
+      // 停止监听数据
+      connection.off('response', fn);
+
+      // 返回数据
+      resolve(null);
+
+    }, 2000);
+
+    // 开始监听数据
+    connection.on('response', fn);
+
+    // 发送数据
+    connection.send(sendData);
+
+  });
+
+}
+
 /** 开启 RCON 客户端 */
 export function startRconClient() {
 
@@ -31,10 +80,10 @@ export function startRconClient() {
     connection = rcon;
 
   }).on('response', function (data) {
-
-    console.log(PREFIX, '收到数据：');
-    console.log(data);
-
+    if (data) {
+      console.log(PREFIX, '收到数据：');
+      console.log(data);
+    }
   }).on('error', function (error) {
 
     console.error(PREFIX, '发生错误：');

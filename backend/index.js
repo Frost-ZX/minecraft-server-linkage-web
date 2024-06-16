@@ -1,5 +1,6 @@
 import { startHTTPServer } from './http.js';
 import { startRconClient } from './rcon.js';
+import { watchUrliumData } from './urlium.js';
 
 const PREFIX = '[process]';
 
@@ -7,6 +8,7 @@ console.clear();
 
 startHTTPServer();
 startRconClient();
+watchUrliumData();
 
 // 监听输入指令
 process.stdin.addListener('data', function (data) {
