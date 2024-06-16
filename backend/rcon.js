@@ -12,6 +12,8 @@ let connection = null;
 export function rconSendData(data = '') {
   if (connection) {
     connection.send(data);
+  } else {
+    console.error(PREFIX, '发送失败：未连接');
   }
 }
 
@@ -44,5 +46,8 @@ export function startRconClient() {
     connection = null;
 
   });
+
+  // 连接
+  rcon.connect();
 
 }
