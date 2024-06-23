@@ -107,11 +107,19 @@ export function startHTTPServer() {
   // 路由 - SSE
   server.get('/sse', function (req, res) {
 
-    let sendData = function (data) {
+    let sendUrliumData = function (data) {
       res.sse({
         id: getUUID(),
         data: data,
         event: 'urlium_data',
+      });
+    };
+
+    let sendWebData = function (data) {
+      res.sse({
+        id: getUUID(),
+        data: data,
+        event: 'web_data',
       });
     };
 
@@ -121,13 +129,18 @@ export function startHTTPServer() {
     console.log(PREFIX, `[SSE] 建立连接（${clientId}）`);
 
     // 建立连接，发送初始消息
-    sendData(JSON.stringify({
-      code: 200,
-      msg: 'OK',
-    }));
+    res.sse({
+      id: getUUID(),
+      data: JSON.stringify({
+        code: 200,
+        msg: 'OK',
+      }),
+      event: 'sse_init',
+    });
 
     // 监听 URLium 数据并转发
-    EVENTS_EMITTER.on('urlium_data', sendData);
+    EVENTS_EMITTER.on('urlium_data', sendUrliumData);
+    EVENTS_EMITTER.on('web_data', sendWebData);
 
     // 监听连接断开
     socket.on('close', function () {
@@ -135,7 +148,8 @@ export function startHTTPServer() {
       console.log(PREFIX, `[SSE] 断开连接（${clientId}）`);
 
       // 停止监听 URLium 数据
-      EVENTS_EMITTER.off('urlium_data', sendData);
+      EVENTS_EMITTER.off('urlium_data', sendUrliumData);
+      EVENTS_EMITTER.off('web_data', sendWebData);
 
     });
 

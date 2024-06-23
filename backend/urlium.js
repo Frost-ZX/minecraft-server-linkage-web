@@ -1,3 +1,4 @@
+import { isObject } from '@frost-utils/javascript/common/index.js';
 import { EVENTS_EMITTER } from './events.js';
 import { rconSendDataWait } from './rcon.js';
 
@@ -10,7 +11,16 @@ import { rconSendDataWait } from './rcon.js';
  * @param {string} world
  */
 function _getBlockInfo(x = 0, y = 0, z = 0, world = '') {
-  return rconSendDataWait(`ugetblock ${x} ${y} ${z} ${world}`);
+  if (
+    typeof x === 'number' &&
+    typeof y === 'number' &&
+    typeof z === 'number' &&
+    typeof world === 'string'
+  ) {
+    return rconSendDataWait(`ugetblock ${x} ${y} ${z} ${world}`);
+  } else {
+    return Promise.resolve(null);
+  }
 }
 
 /**
@@ -22,7 +32,17 @@ function _getBlockInfo(x = 0, y = 0, z = 0, world = '') {
  * @param {string} block
  * - 示例：`minecraft:redstonr_lamp[lit=true]`
  */
-function _setBlockInfo(x = 0, y = 0, z = 0, world = '', block = '') {
+function _setBlockInfo(x, y, z, world, block) {
+
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof z !== 'number' ||
+    typeof world !== 'string' ||
+    typeof block !== 'string'
+  ) {
+    return Promise.resolve(false);
+  }
 
   let cmd = `usetblock ${x} ${y} ${z} ${world} ${block} replace`;
 
@@ -34,34 +54,41 @@ function _setBlockInfo(x = 0, y = 0, z = 0, world = '', block = '') {
 }
 
 /**
- * @description 将方块变为红石块或铁块
- * @param {number} x
- * @param {number} y
- * @param {number} z
- * @param {string} world
+ * @description 将目标位置的方块在红石块和铁块直接变换
+ * @param {object} options
+ * @param {number} options.x
+ * @param {number} options.y
+ * @param {number} options.z
+ * @param {string} options.world
+ * @returns 空字符串：操作失败，on：红石块，off：铁块
  */
-function toggleRedstoneBlock(x, y, z, world) {
+function toggleRedstoneBlock(options) {
 
-  if (
-    typeof x === 'undefined' ||
-    typeof y === 'undefined' ||
-    typeof z === 'undefined' ||
-    typeof world === 'undefined'
-  ) {
-    return Promise.resolve();
+  if (!isObject(options)) {
+    return Promise.resolve('');
   }
 
+  let { x, y, z, world } = options;
+
   return _getBlockInfo(x, y, z, world).then((blockInfo) => {
+
+    let block = '';
+
     switch (blockInfo) {
       case 'minecraft:iron_block':
-        _setBlockInfo(x, y, z, world, 'minecraft:redstone_block');
-        break;
+        block = 'minecraft:redstone_block';
+        return _setBlockInfo(x, y, z, world, block).then((success) => {
+          return success ? 'on' : '';
+        });
       case 'minecraft:redstone_block':
-        _setBlockInfo(x, y, z, world, 'minecraft:iron_block');
-        break;
+        block = 'minecraft:iron_block';
+        return _setBlockInfo(x, y, z, world, block).then((success) => {
+          return success ? 'off' : '';
+        });
       default:
-        break;
+        return Promise.resolve('');
     }
+
   });
 
 }
@@ -81,15 +108,28 @@ export function watchUrliumData() {
         return;
       }
 
-      let type = parsed1.type;
+      let info = null;
+      let type = '';
+
+      if (parsed1.function) {
+        info = parsed1.function;
+        type = 'function'
+      } else {
+        return;
+      }
 
       if (type === 'function') {
 
-        let fnName = parsed1.name;
-        let params = parsed1.params;
+        let { cmd, params } = info;
 
-        if (fnName === 'toggleRedstoneBlock') {
-          toggleRedstoneBlock.apply(null, params);
+        if (cmd === 'toggleRedstoneBlock') {
+          toggleRedstoneBlock(params).then((result) => {
+            EVENTS_EMITTER.emit('web_data', JSON.stringify({
+              cmd,
+              params,
+              result,
+            }));
+          });
         }
 
       }
