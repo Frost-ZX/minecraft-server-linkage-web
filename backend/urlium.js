@@ -54,12 +54,13 @@ function _setBlockInfo(x, y, z, world, block) {
 }
 
 /**
- * @description 将目标位置的方块在红石块和铁块直接变换
+ * @description 将目标位置的方块在红石块和铁块之间变换
  * @param {object} options
  * @param {number} options.x
  * @param {number} options.y
  * @param {number} options.z
  * @param {string} options.world
+ * @param {string} [options.value]
  * @returns 空字符串：操作失败，on：红石块，off：铁块
  */
 function toggleRedstoneBlock(options) {
@@ -68,8 +69,31 @@ function toggleRedstoneBlock(options) {
     return Promise.resolve('');
   }
 
-  let { x, y, z, world } = options;
+  let { x, y, z, world, value } = options;
 
+  // 指定方块
+  if (typeof value === 'string') {
+
+    let block = '';
+
+    switch (value) {
+      case 'on':
+        block = 'minecraft:redstone_block';
+        return _setBlockInfo(x, y, z, world, block).then((success) => {
+          return success ? 'on' : '';
+        });
+      case 'off':
+        block = 'minecraft:iron_block';
+        return _setBlockInfo(x, y, z, world, block).then((success) => {
+          return success ? 'off' : '';
+        });
+      default:
+        return Promise.resolve('');
+    }
+
+  }
+
+  // 切换方块
   return _getBlockInfo(x, y, z, world).then((blockInfo) => {
 
     let block = '';
@@ -96,7 +120,7 @@ function toggleRedstoneBlock(options) {
 /** 监听 URLium 数据 */
 export function watchUrliumData() {
 
-  EVENTS_EMITTER.on('urlium_data', function (data) {
+  EVENTS_EMITTER.on('urlium_data', async function (data) {
     try {
 
       let parsed0 = JSON.parse(data);
@@ -130,6 +154,22 @@ export function watchUrliumData() {
               result,
             }));
           });
+        } else if (cmd === 'toggleRedstoneBlocks') {
+
+          for (let i = 0; i < params.length; i++) {
+
+            let p = params[i];
+
+            await toggleRedstoneBlock(p).then((result) => {
+              EVENTS_EMITTER.emit('web_data', JSON.stringify({
+                cmd: 'toggleRedstoneBlock',
+                params: p,
+                result,
+              }));
+            });
+
+          }
+
         }
 
       }
